@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Destinos - FGeoTour</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #4facfe, #43e97b);
+      color: #333;
+    }
+    header {
+      background: #004aad;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+    }
+    h1 {
+      margin: 0;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 15px;
+      text-align: center;
+    }
+    .card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .card h2 {
+      margin: 10px 0 5px;
+    }
+    .btn-voltar {
+      display: inline-block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background: #004aad;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+    .btn-voltar:hover {
+      background: #00347a;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #004aad;
+      color: #fff;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Destinos FGeoTour</h1>
+    <p>Encontre experiências incríveis e personalizadas</p>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <img src="https://source.unsplash.com/400x300/?beach" alt="Praia">
+      <h2>Praia Paraíso</h2>
+      <p>Águas cristalinas e muita diversão para toda a família.</p>
+    </div>
+
+    <div class="card">
+      <img src="https://source.unsplash.com/400x300/?mountain" alt="Montanha">
+      <h2>Trilha da Montanha</h2>
+      <p>Perfeito para quem ama aventura e natureza.</p>
+    </div>
+
+    <div class="card">
+      <img src="https://source.unsplash.com/400x300/?city" alt="Cidade">
+      <h2>Centro Histórico</h2>
+      <p>Conheça a cultura e história local em um passeio inesquecível.</p>
+    </div>
+  </div>
+
+  <div style="text-align:center;">
+    <a href="index.html" class="btn-voltar">Voltar para Início</a>
+  </div>
+
+  <footer>
+    © 2025 FGeoTour - Todos os direitos reservados
+  </footer>
+</body>
+</html>
