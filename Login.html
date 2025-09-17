@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>FGeoTour — Acessar</title>
+  <style>
+    /* ===== style minimal e profissional ===== */
+    :root { --brand:#0b74ff; --bg:#f4f7fb; --card:#ffffff; --muted:#667085; }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;height:100vh;display:flex;align-items:center;justify-content:center}
+    .wrap{width:100%;max-width:420px;padding:18px}
+    .card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 6px 18px rgba(13,38,59,0.06)}
+    h1{margin:0 0 6px;font-size:1.4rem;color:var(--brand)}
+    h2{margin:0 0 14px;font-size:1rem}
+    .form-row{margin-bottom:10px}
+    input[type="email"],input[type="password"]{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef8;font-size:0.95rem}
+    label.small{font-size:0.85rem;color:var(--muted)}
+    button{width:100%;padding:10px;border-radius:8px;border:0;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}
+    .actions{display:flex;gap:8px;align-items:center;margin-top:10px}
+    .link{color:var(--brand);cursor:pointer;text-decoration:none;font-weight:600}
+    .msg{margin:10px 0;padding:10px;border-radius:8px;font-size:0.95rem}
+    .msg.error{background:#ffecec;color:#9b1b1b}
+    .msg.ok{background:#ecfff2;color:#056838}
+    .small{font-size:0.85rem;color:var(--muted);text-align:center;margin-top:12px}
+    .footer{margin-top:12px;text-align:center;color:#9aa4b2;font-size:0.82rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>🌍 FGeoTour</h1>
+      <h2>Acesse sua conta</h2>
+
+      <div id="msgArea"></div>
+
+      <form id="loginForm" autocomplete="on" onsubmit="return false;">
+        <div class="form-row">
+          <input id="email" type="email" placeholder="Email" required />
+        </div>
+        <div class="form-row">
+          <input id="password" type="password" placeholder="Senha (mín. 8 caracteres)" required minlength="8" />
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:8px"><input id="remember" type="checkbox" /> <span class="small">Lembrar</span></label>
+          <a id="forgotLink" class="link" style="margin-left:auto">Esqueci a senha</a>
+        </div>
+
+        <button id="btnLogin">Entrar</button>
+
+        <div class="actions" style="margin-top:12px">
+          <a id="registerLink" class="link" href="register.html">Criar conta</a>
+          <div style="flex:1"></div>
+        </div>
+
+        <p class="small">Protegemos seu acesso. Após 5 tentativas erradas, conta será bloqueada por 15 minutos.</p>
+      </form>
+    </div>
+
+    <p class="footer">© FGeoTour 2025</p>
+  </div>
+
+<script>
+/*
+  login.html — cliente profissional de login para FGeoTour
+  - Ajuste API_URL para apontar ao seu backend (ex: 'https://api.seudominio.com/api')
+  - Se não houver backend, o script tentará fallback local (para testes)
+*/
+
+const API_URL = 'http://localhost:3000/api'; // <-- ajuste aqui para o backend real ou deixe assim para desenvolvimento
+const LOCK_THRESHOLD = 5;     // tentativas falhas antes de bloquear
+const LOCK_MINUTES = 15;      // minutos de bloqueio
+const ATTEMPT_KEY = 'fgt_login_attempts'; // armazena tentativas e bloqueio
+const TOKEN_KEY = 'fgt_token';
+const AGENCY_KEY = 'fgt_agency';
+
+const msgArea = document.getElementById('msgArea');
+const btnLogin = document.getElementById('btnLogin');
+const loginForm = document.getElementById('loginForm');
+const inputEmail = document.getElementById('email');
+const inputPassword = document.getElementById('password');
+
+function showMsg(text, type='error'){
+  msgArea.innerHTML = `<div class="msg ${type==='ok'? 'ok':'error'}">${text}</div>`;
+}
+
+function clearMsg(){ msgArea.innerHTML = ''; }
+
+// Gerencia tentativas e bloqueio (armazenado no localStorage)
+function getAttempts(){
+  try { return JSON.parse(localStorage.getItem(ATTEMPT_KEY) || '{"count":0,"lockedUntil":null}'); } catch(e){ return {count:0,lockedUntil:null} }
+}
+function setAttempts(obj){ localStorage.setItem(ATTEMPT_KEY, JSON.stringify(obj)); }
+function resetAttempts(){ setAttempts({count:0,lockedUntil:null}); }
+
+function isLocked(){
+  const a = getAttempts();
+  if (!a.lockedUntil) return false;
+  return new Date(a.lockedUntil) > new Date();
+}
+function lockRemainingMinutes(){
+  const a = getAttempts();
+  if (!a.lockedUntil) return 0;
+  const ms = new Date(a.lockedUntil) - new Date();
+  return Math.max(0, Math.ceil(ms / 60000));
+}
+
+async function doLogin(email, password, remember=false){
+  // checa bloqueio
+  if(isLocked()){
+    const mins = lockRemainingMinutes();
+    showMsg(`Conta temporariamente bloqueada. Tente novamente em ${mins} minuto(s).`);
+    return;
+  }
+
+  // validações front
+  if(!email || !/\S+@\S+\.\S+/.test(email)){ showMsg('Digite um email válido.'); return; }
+  if(!password || password.length < 8){ showMsg('Senha deve ter ao menos 8 caracteres.'); return; }
+
+  btnLogin.disabled = true; btnLogin.textContent = 'Entrando...';
+  clearMsg();
+
+  // tentativa 1: backend (se API_URL estiver configurado)
+  try {
+    const res = await fetch(API_URL + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    // se servidor respondeu com JSON
+    const j = await res.json().catch(()=>null);
+    if (res.ok && j && j.ok){
+      // sucesso
+      // salvar token (string ou objeto)
+      localStorage.setItem(TOKEN_KEY, j.token || JSON.stringify(j.token || ''));
+      if (j.agency) localStorage.setItem(AGENCY_KEY, JSON.stringify(j.agency));
+      if (remember){
+        // opcional: definir flag para lembrar (token permanece)
+        localStorage.setItem('fgt_remember', '1');
+      } else {
+        localStorage.removeItem('fgt_remember');
+      }
+      resetAttempts();
+      showMsg('Login efetuado com sucesso. Redirecionando...', 'ok');
+      setTimeout(()=> window.location = 'dashboard.html', 800);
+      return;
+    } else {
+      // backend respondeu com erro (401,403,400) — incrementa tentativas e exibe mensagem
+      const msg = (j && j.message) ? j.message : `Erro ao entrar (status ${res.status})`;
+      handleFailedAttempt(msg);
+      return;
+    }
+  } catch (err) {
+    // network error -> fallback local
+    console.warn('Backend indisponível, tentando fallback local:', err);
+    const fallbackRes = tryLocalLogin(email, password);
+    if (fallbackRes.ok){
+      localStorage.setItem(TOKEN_KEY, 'local-fake-token-' + btoa(email));
+      localStorage.setItem(AGENCY_KEY, JSON.stringify(fallbackRes.agency));
+      resetAttempts();
+      showMsg('Login local bem-sucedido (fallback). Redirecionando...', 'ok');
+      setTimeout(()=> window.location = 'dashboard.html', 700);
+      return;
+    } else {
+      handleFailedAttempt(fallbackRes.message || 'Backend indisponível e credenciais inválidas.');
+      return;
+    }
+  } finally {
+    btnLogin.disabled = false; btnLogin.textContent = 'Entrar';
+  }
+}
+
+function handleFailedAttempt(message){
+  const a = getAttempts();
+  a.count = (a.count || 0) + 1;
+  if (a.count >= LOCK_THRESHOLD){
+    const until = new Date(Date.now() + LOCK_MINUTES*60000).toISOString();
+    a.lockedUntil = until;
+    a.count = 0;
+    showMsg(`Muitas tentativas inválidas. Conta bloqueada por ${LOCK_MINUTES} minutos.`);
+  } else {
+    showMsg(message || 'Credenciais inválidas.');
+  }
+  setAttempts(a);
+}
+
+/* ===== fallback local para testes (apenas protótipo) =====
+   - Procura por lista em localStorage 'fgt_agencies_v1' ou 'fgt_agency' previamente cadastrada
+   - Estrutura esperada: array de objetos { id,name,email,password,... }
+   - Senha no fallback é plain-text (protótipo)
+*/
+function tryLocalLogin(email, password){
+  // procura db local (duas chaves possíveis)
+  const dbCandidates = [
+    localStorage.getItem('fgt_agencies_v1'),
+    localStorage.getItem('fgt_agency_db'),
+    localStorage.getItem('fgt_users')
+  ];
+  for (const raw of dbCandidates){
+    if(!raw) continue;
+    try {
+      const arr = JSON.parse(raw);
+      if(!Array.isArray(arr)) continue;
+      const found = arr.find(u => (u.email||'').toLowerCase() === email.toLowerCase());
+      if(found && (found.password === password || found.password === simpleHash(password))) {
+        // returns object with agency
+        return { ok:true, agency: sanitizeLocalAgency(found) };
+      }
+    } catch(e){ continue; }
+  }
+
+  // also check single agency object at fgt_agency
+  try {
+    const raw = localStorage.getItem('fgt_agency');
+    if (raw){
+      const a = JSON.parse(raw);
+      if ((a.email||'').toLowerCase() === email.toLowerCase() && (a.password === password || a.password === simpleHash(password))){
+        return { ok:true, agency: sanitizeLocalAgency(a) };
+      }
+    }
+  } catch(e){}
+  return { ok:false, message:'Credenciais inválidas (fallback).' };
+}
+
+function sanitizeLocalAgency(a){
+  const c = {...a};
+  delete c.password; delete c.resetCode; return c;
+}
+function simpleHash(s){ try{ return btoa(unescape(encodeURIComponent(s))).slice(0,24) } catch(e){ return s } }
+
+/* ===== eventos UI ===== */
+loginForm.addEventListener('submit', (ev)=>{
+  ev.preventDefault();
+  clearMsg();
+  const email = inputEmail.value.trim();
+  const password = inputPassword.value;
+  const remember = document.getElementById('remember').checked;
+  doLogin(email, password, remember);
+});
+
+document.getElementById('forgotLink').addEventListener('click', (ev)=>{
+  ev.preventDefault();
+  // redireciona para página de recuperação (crie forgot.html mais tarde)
+  window.location = 'forgot.html';
+});
+
+// quick helper: if user already has token, go to dashboard
+(function onLoad(){
+  const token = localStorage.getItem(TOKEN_KEY);
+  if(token){
+    // opcional: validar token via backend /api/agency
+    // se quiser testar redirect automático, descomente:
+    // window.location = 'dashboard.html';
+  }
+})();
+</script>
+</body>
+</html>
